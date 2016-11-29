@@ -5,14 +5,14 @@
             [clojure.walk :refer [walk]]
             [clojure.core.async :as async :refer [chan go go-loop timeout <! >! <!! >!!]]
             [mx.interware.arp.core.state :refer [as-map lookup]]
-            [mx.interware.arp.streams.common :refer [create-sink key-factory 
+            [mx.interware.arp.streams.common :refer [create-sink key-factory defstream
                                                      using-path using-path-with-default-streams]]
             [mx.interware.arp.streams.stateful  :refer [batch concurrent-meter counter 
                                                         changed log-matcher reduce-with
                                                         acum-stats dump-every
                                                         ewma-timeless rate]]
             [mx.interware.arp.streams.stateless :refer [->DEBUG ->INFO ->WARN ->ERROR
-                                                        default where  smap
+                                                        default where  smap split
                                                         with by reinject store! 
                                                         decorate anomaly-by-stdev forward
                                                         percentiles]]
@@ -41,54 +41,51 @@
   {:tx "tx1" :thread "T1" :end true :time 5000})
 
 
+; calcular estadisticas de INX)
 
 (defn mark [e]
   (assoc e :trace (java.lang.Exception. "TRACE")))
 
-(defn view [msg]
-  (fn [by-path state e]
-    state))
+;187836
 
 (def streams
   (default :ttl -1
-   (default :starting false 
-    (where :tx
+    (where (fn [e] (= "getCustInfo" (:tx e)))
       (where :delta
-        (view :v-delta)
         (rate :tx-rate :timestamp :rate 30 15
-          (view :v-tx-rate)
           (smap (fn [e]
                   (if (= "23:59" (.format (java.text.SimpleDateFormat. "HH:mm") (:timestamp e)))
                     (assoc e :rate (first (:rate e)))))
-            (->ERROR [:rate])
+            (->INFO [:rate])
             (smap (fn [{:keys [rate] :as e}]
                     (assoc e :rate-stats (folds/simple-mean&stdev rate)))
-              (->ERROR [:rate-stats]))))
+              (->INFO [:rate-stats]))))
         (smap #(assoc % :delta (double (Integer/parseInt (:delta %))))
           (by [:tx]
             (batch :big 1000000 90000
               (percentiles :delta :percentiles [0 0.5 0.75 0.8 0.9 0.95]
+                (smap (fn [e]
+                        {:tx (:tx e) :percentiles (:percentiles e)})
+                  (store! (fn [e] [:percentiles (:tx e)])
+                    (dump-every :percentiles "hpercent" "yyyyMMdd" [1 :minute] "./config/stats/")))
                 (->INFO [:tx :percentiles])))
             (batch :tx 1000 1000
               (smap #(folds/mean&std-dev :delta :avg :variance :stdev :n %)
                 (acum-stats :stats :avg :variance :stdev :n
-                  
-                  (dump-every :stats "history" "yyyyMM_ww" [1 :minute] "./config/stats/")
-                  (->INFO [:tx :avg :variance :stdev :n :d-k :e]))))
-            (where #(= "getInqCustCardInfo" (:tx %))
-              (decorate :history
-                (fn [by-path state e] 
-                  state)))
-                  
-            (where :starting
-             (ewma-timeless :ewma 0.05 :delta 
-              (decorate :stats
-                (anomaly-by-stdev 2 :delta :avg :stdev
-                  (->ERROR :all)
-                  (forward "localhost" 7777)))))
+                  (dump-every :stats "history" "yyyyMM_ww" [1 :minute] "./config/stats/"))))
             (decorate :history
-              (anomaly-by-stdev 3 :delta :avg :stdev
-                (->ERROR :all))))))))))
+              (split 
+                :avg 
+                (anomaly-by-stdev 1 :delta :avg :stdev
+                  (->ERROR :all))
+                
+                (ewma-timeless :ewma 0.5 :delta 
+                  (decorate :stats
+                    (anomaly-by-stdev 0 :delta :avg :stdev
+                      (defstream [e] (println :despues-ewma e)))))))))))))
+                      ;(->INFO :all))))))))))))
+                      ;(forward "localhost" 7777))))))))))))
+              
   
 (def test-streams
   (fn [by-path state e] 
@@ -106,6 +103,8 @@
     (default :starting true 
       (where :tx
         (where :delta
+          ;(smap (fn [e]
+          ;        (println (.format (java.text.SimpleDateFormat. "yyyyMMdd-HH:mm:ss,SSS") (:timestamp e)))
           (rate :timestamp :rate 30 60
             (smap (fn [e]
                     (if (= "23:59" (.format (java.text.SimpleDateFormat. "HH:mm") (:timestamp e)))
@@ -115,16 +114,18 @@
             (by [:tx]
               (batch 1000 1000
                 (smap #(folds/mean&std-dev :delta :avg :variance :stdev :n %)
+                  ;(->WARN [:tx :avg :variance :stdev :n :ttl])
                   (acum-stats :avg :variance :stdev :n
                     (smap (fn [{:keys [tx avg variance stdev n]}]
                             {:avg avg :variance variance :stdev stdev :n n :tx tx :ttl -1})
                       (store! (fn [{:keys [tx] :as e}]
                                 [:stats tx])))
+                    ;(dump-every "history" "yyyyMM_ww" [1 :minute] "./config/stats/")
                     (->WARN [:tx :avg :variance :stdev :n]))))
               (where :starting
                (ewma-timeless 0.5 :delta 
                 (decorate (fn [{:keys [tx]}]
-                            [:stats tx]) 
+                            [:stats tx]) ;"../../../batch/smap/acum-stats"
                   (anomaly-by-stdev 2 :delta :avg :stdev
                     (->ERROR :all)
                     (forward "localhost" 7777)))))

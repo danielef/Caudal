@@ -1,17 +1,20 @@
 (ns mx.interware.arp.streams.stateless
   (:require [clojure.pprint :as pp]
             [clojure.string :as str]
-            [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clojure.core.async :as async :refer [chan go go-loop timeout <! >! <!! >!!]]
+            ;[immutant.caching :as C]
             [mx.interware.arp.core.state :as ST :refer [as-map lookup]]
+            ;[mx.interware.arp.core.atom-state]
+            ;[mx.interware.arp.core.immutant-state]
             [mx.interware.arp.streams.common :refer [key-factory 
                                                      propagate error 
                                                      create-sink]])
-  (:import (java.net InetAddress URL)
-           (org.apache.log4j PropertyConfigurator)
-           (org.apache.commons.io FileUtils)
-           (org.infinispan.configuration.cache ConfigurationBuilder)))
+  (:import 
+    (java.net InetAddress URL)
+    (org.apache.log4j PropertyConfigurator)
+    (org.infinispan.configuration.cache ConfigurationBuilder)))
+
 
 (defn default 
   "
@@ -104,7 +107,9 @@
             (if-not to-do
               expr
               (if (expr e)
-                to-do)))]
+                (do
+                  (println ">>>" e expr (expr e))
+                  to-do))))]
     (let [pairs (partition-all 2 exprs)]
       (fn [by-path state e]
         (if-let [to-do-fn (some (partial pred e) pairs)]
@@ -120,33 +125,6 @@
         (assoc result k v)) 
       {} 
       (filter #(key-set (first %)) m))))
-
-(defn unfold [& children]
-  "
-  Streamer function used for unfold event collections propagated by parent streamers. Events are therefore propagated one
-  by one. If an individual event is received, it is propagated without any modification.
-  > **Arguments:**
-     *children*: Children streamer functions to be propagated
-  "
-  (fn stream [by-path state input]
-    (cond (map? input)  (propagate by-path state input children)
-          (coll? input) (reduce (fn [new-state event] (propagate by-path new-state event children)) state input)
-          :else         (propagate by-path state input children))))
-
-(defn to-file
-  "
-  Streamer function that stores events to a specified file
-  > **Arguments**:
-    *file-path*: The path to the target file
-    *keys*: The keywords representing attributtes to be written in the file
-    *children*: Children streamer functions to be propagated. Events are propagated untouched.
-  "
-  [file-path keys & children]
-  (let [file (io/file file-path)]
-    (fn stream [by-path state e]
-      (let [new-event (filter-keys (set keys) e)]
-        (FileUtils/writeStringToFile file (str (pr-str new-event) "\n") true)
-        (propagate by-path state e children)))))
 
 (defn ->DEBUG 
   "
@@ -245,6 +223,7 @@
               (first fields)
               (apply juxt fields))]
     (fn [by-path state e]
+      ;(println :fld fld (fld e))
       (let [fork-name (fld e)]
         (propagate (into (or by-path []) (flatten [fork-name])) state e children)))))
 
@@ -281,7 +260,7 @@
   (fn [by-path state e]
     (let [s-key (if (fn? state-key-or-fn)
                   (state-key-or-fn e)
-                  (key-factory state state-key-or-fn))
+                  (key-factory by-path state-key-or-fn))
           s (state s-key)]
       (propagate by-path state (merge e s) children))))
 
@@ -335,10 +314,12 @@
   (let [socket-conf (agent {:host arp-host
                             :port arp-port})
         send-arp-events (fn [{:keys [host port socket] :as conf} events]
+                          ;(println :conf (pr-str conf) (pr-str events))
                           (try
                             (let [socket (or socket 
                                              (java.net.Socket. host port))
                                   out (.getOutputStream socket)]
+                              ;(println :write (pr-str events))
                               (.write out (.getBytes (pr-str events) "utf-8"))
                               (.write out 10)
                               (.flush out)

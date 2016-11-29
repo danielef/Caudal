@@ -23,7 +23,7 @@
   * *source* arbitrary map to build a template"
   [source]
   [:table {:style "margin:5px 10px; border:2px solid #f5f8fa; padding:0"
-    :cellpadding "5" :cellspacing "0" :width "550px"} 
+           :cellpadding "5" :cellspacing "0" :width "550px"} 
    [:tbody (map-indexed (fn [i key] 
                           (let [style (if (even? i) 
                                         "background-color:#f5f8fa"
@@ -61,16 +61,16 @@
    * keys (optional) keys to be sended 
    * html-template (optional) to produce a representation of an event"
   [smtp-opts msg-opts events & [keys html-template]]
-   (let [title   (:subject msg-opts)
-         events  (flatten [events])
-         select    (if (or (not keys) (nil? keys) (empty? keys))
-                     events 
-                     (map (fn [x] (select-keys x keys)) events))
-         resume  (map (fn [event] (event->html event html-template)) select)
-         content (hiccup/html (make-header title) resume (make-footer))
-         body    [{:type "text/html" :content content}]]
-    (postal/send-message smtp-opts
-                         (merge msg-opts {:body body}))))
+  (let [title   (:subject msg-opts)
+        events  (flatten [events])
+        select    (if (or (not keys) (nil? keys) (empty? keys))
+                    events 
+                    (map (fn [x] (select-keys x keys)) events))
+        resume  (map (fn [event] (event->html event html-template)) select)
+        content (hiccup/html (make-header title) resume (make-footer))
+        body    [{:type "text/html" :content content}]]
+   (postal/send-message smtp-opts
+                        (merge msg-opts {:body body}))))
 
 (defn mailer
   "Returns a mailer, which is a function invoked with a map of options and 
