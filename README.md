@@ -18,7 +18,7 @@ Caudal is a platform that analyzes application logs using predictive models and 
  
 
 ## Installation
-1. Generate your Streamming confir at src/mx/interware/arp/test
+1. Generate your Streamming config at src/mx/interware/arp/test
 2. Load your Streamming configuration from arp-config.edn 
 3. Set ut your listeners at config/arp-config.edn
 4. Recompile with in terminal lein compile
