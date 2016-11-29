@@ -4,7 +4,8 @@
             [mx.interware.arp.streams.stateful :as stateful]
             [mx.interware.arp.streams.stateless :as stateless]
             [mx.interware.arp.core.state :as state]
-            [mx.interware.arp.core.atom-state :as atom-state]))
+            [mx.interware.arp.core.atom-state :as atom-state]
+            [mx.interware.arp.util.arp-util :as util]))
 
 (deftest mixer-test-1
   (let [test-result (atom nil)
@@ -269,5 +270,26 @@
       (clojure.pprint/pprint expected)
       (println (= result expected))
       (is (= result expected)))))
+
+(deftest decorate-1
+  (let [initial-state {:avg 1000 :stdev  30 :n 20}
+        agt (util/create-arp-agent 
+              :initial-map {[:stats "getCustInfo"] initial-state})
+        test-event {:tx "getCustInfo"}
+        expected (merge test-event initial-state)
+        result (atom nil)
+        streams (stateless/by [:tx]
+                  (stateless/decorate :stats
+                    (common/defstream [e]
+                      (reset! result (dissoc e :arp/latency)))))
+        sink (common/create-sink agt streams)]
+    (sink test-event)
+    (Thread/sleep 300)
+    (println @result)
+    (is (= @result expected))))
+    
+
+                     
+                   
 
             

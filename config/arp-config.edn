@@ -24,17 +24,6 @@
                           :parameters {:port        7777
                                        :idle-period 20}}
 
-                         {:type       mx.interware.arp.io.kafka-X
-                          :stream-to  [:main]
-                          :parameters {:topic-name          "test"
-                                       :consumer-parameters {:bootstrap.servers       "localhost:9092"
-                                                             :group.id                "test"
-                                                             :enable.auto.commit      true
-                                                             :auto.commit.interval.ms 1000
-                                                             :session.timeout.ms      30000
-                                                             :key.deserializer        "org.apache.kafka.common.serialization.StringDeserializer"
-                                                             :value.deserializer      "org.apache.kafka.common.serialization.StringDeserializer"}}}
-
                          ;Documentation for listener :tailer type:
                          ;This listener 'tails' follows the information that is sent to a group of files
                          ;parameters needed are:
@@ -107,26 +96,34 @@
                          ;    -event-factory-var Symbol name of the job to be executed
                          {:type   mx.interware.arp.core.scheduler-server
                           :stream-to  [:main]
-                          :jobs [{:cron-def "0 0/5 * ? * MON-FRI"
+                          :jobs [{:runit? false
+                                  :cron-def "0 0/5 * ? * MON-FRI"
                                   :event-factory mx.interware.arp.core.scheduler-server/state-admin-event-factory
                                   :parameters {:cmd :clear-all}}
-                                 {:cron-def "0 0/1 * ? * MON-FRI"
+                                 {:runit? false
+                                  :cron-def "0 0/1 * ? * MON-FRI"
                                   :event-factory mx.interware.arp.core.scheduler-server/state-admin-event-factory
                                   :parameters {:cmd :clear-keys :filter-key :ewma}}
-                                 {:cron-def "0 0/1 * ? * MON-FRI"
+                                 {:runit? false
+                                  :cron-def "0 0/1 * ? * MON-FRI"
                                   :event-factory mx.interware.arp.core.scheduler-server/state-admin-event-factory
                                   :parameters {:cmd :clear-keys :filter-key-re #".:tx-rate.*"}}
-                                 {:cron-def "0 0/1 * ? * MON-FRI"
+                                 {:runit? true
+                                  :cron-def "0 0/1 * ? * MON-FRI"
                                   :event-factory mx.interware.arp.core.scheduler-server/state-admin-event-factory
                                   :parameters {:cmd :load-history
                                                :path "config/stats"
-                                               :now-millis 0 ;604800000
+                                               :now-millis 604800000
                                                :date-fmt "yyyyMM_ww" 
                                                :key-name "history"}}]}]}
                           ; CRON str = s M H D m w [y] acording to:
                           ; s=second, M=minute, H=hour (24), D=day, m=month, w=day of week, y=year (optional)
                           ; see: http://www.quartz-scheduler.org/documentation/quartz-2.2.x/tutorials/tutorial-lesson-06
 
+;:parameters {:jobs [{:cron "0 0/1 * ? * MON-FRI"}]}}
+
+;:event-factory {:type mx.interware.arp.core.scheduler-server/state-admin-event-factory
+;                                                         :parameters {:cmd :clear-all}}
 
  ;Elastic search configuration:
  ;  :host Elastic search server address
@@ -141,9 +138,9 @@
  ;  :user SMTP authentication username
  ;  :password SMTP authentication password
  ;  :from The email to send as from
- :smtp          {:host     ""
-                 :user     ""
-                 :password ""
-                 :from     ""}}
+ :smtp          {:host     "smtp.gmail.com"
+                 :user     "interware.arp@gmail.com"
+                 :password "!QAZ@wsx"
+                 :from     "interware.arp@gmail.com"}}
 
 

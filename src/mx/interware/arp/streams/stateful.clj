@@ -62,8 +62,8 @@
             (propagate
               by-path 
               new-state
-              (assoc e metric-key ewma
-                children)))
+              (assoc e metric-key ewma)
+              children))
           state)))))
         
   
@@ -372,9 +372,6 @@
           (dumper-fn [state by-path d-k]
             (if-let [dump-info (state d-k)]
               (let [date-str (.format (java.text.SimpleDateFormat. date-format) (java.util.Date.))
-                    ; dump-name looks like 
-                    ; asuming format:'yyyyMM_ww' and file-name-prefix:'history'
-                    ;    201601_03-history-getCustInfo.edn
                     dump-name (apply str date-str (map (fn [a b] (str a (name b))) 
                                                     (repeat "-") 
                                                     (cons file-name-prefix (rest d-k))))
@@ -438,6 +435,7 @@
                    :ttl -1}))
               data))]
     (fn [by-path state e]
+      ;(println :rateing e)
       (let [d-k (key-factory by-path state-key)
             {{:keys [matrix]} d-k :as new-state} (update state d-k mutator e)]
         (if matrix
@@ -445,7 +443,7 @@
           new-state)))))
       
 (defn mixer [state-key delay ts-key priority-fn & children]
-  (letfn [(decision-fn [frontier [ts priority nano event]] 
+  (letfn [(decision-fn [frontier [ts priority nano event]] ; buffer contains vectors like:[ts priority nano event]
             (< nano frontier)) 
           
           (sortable-event [e]
@@ -479,6 +477,7 @@
                 (exec-in :mixer2 delay send2agent cleanup-fn by-path d-k delay))
               new-state))]
     (fn [by-path state e]
+      ;(pp/pprint (ST/as-map state))
       (let [d-k (key-factory by-path state-key)
             {{:keys [start-purging? purged-events]} d-k
              send2agent :arp/send2agent

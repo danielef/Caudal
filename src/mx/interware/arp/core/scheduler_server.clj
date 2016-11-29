@@ -11,16 +11,17 @@
 
 (defmethod start-listener 'mx.interware.arp.core.scheduler-server 
   [sink {:keys [jobs] :as config}]
-  (doseq [{:keys [cron-def event-factory parameters]} jobs]
-    (let [event-factory-ns (symbol (namespace event-factory))
-          _                (require event-factory-ns)
-          event-factory    (resolve event-factory)
-          event-source     (event-factory parameters)]
-      (schedule 
-        (fn []
-          (log/info "running schedule:" cron parameters)
-          (sink (event-source)))
-        (cron cron-def)))))
+  (doseq [{:keys [runit? cron-def event-factory parameters] :or {runit? true}} jobs]
+    (when runit?
+      (let [event-factory-ns (symbol (namespace event-factory))
+            _                (require event-factory-ns)
+            event-factory    (resolve event-factory)
+            event-source     (event-factory parameters)]
+        (schedule 
+          (fn []
+            (log/info "running schedule:" cron parameters)
+            (sink (event-source)))
+          (cron cron-def))))))
       
 (defn state-admin-event-factory [{:keys [cmd] :as parameters}]
   (fn []
