@@ -3,11 +3,8 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.core.async :as async :refer [chan go go-loop timeout <! >! <!! >!!]]
-            ;[immutant.caching :as C]
             [mx.interware.arp.core.state :as ST]
             [mx.interware.arp.util.matrix :as M]
-            ;[mx.interware.arp.core.atom-state]
-            ;[mx.interware.arp.core.immutant-state]
             [mx.interware.arp.util.date-util :refer [cycle->millis MILLIS-IN-DAY TZ-OFFSET
                                                      compute-rate-bucket]]
             [mx.interware.arp.streams.common :refer [key-factory complex-key-factory
@@ -293,7 +290,6 @@
         (let [id (tx-id-fn e)
               init? (init-pred e)
               end? (end-pred e)]
-          ;(println :log-matcher1 id init? end? e)
           (if (and id (or init? end?))
             (let [d-k (complex-key-factory by-path [state-key id])
                   {{:keys [start propagate-metric?]} d-k 
@@ -376,9 +372,6 @@
           (dumper-fn [state by-path d-k]
             (if-let [dump-info (state d-k)]
               (let [date-str (.format (java.text.SimpleDateFormat. date-format) (java.util.Date.))
-                    ; dump-name looks like 
-                    ; asuming format:'yyyyMM_ww' and file-name-prefix:'history'
-                    ;    201601_03-history-getCustInfo.edn
                     dump-name (apply str date-str (map (fn [a b] (str a (name b))) 
                                                     (repeat "-") 
                                                     (cons file-name-prefix (rest d-k))))
@@ -398,7 +391,6 @@
           (repeat-every :dump-every (cycle->millis cycle) -1 send2agent dumper-fn by-path d-k))
         new-state))))
 
-;:tx-rate :timestamp :rate 30 60
 (defn rate
   "
   Stream function that matains a matrix fo *days* rows and 60*24 columns, and stores it in the 
@@ -418,13 +410,11 @@
   "
   [state-key ts-key rate-key days bucket-size & children]
   (letfn [(mutator [{:keys [matrix last] :as data} e]
-            ;(println :matrix2 matrix :last last)
             (if (ts-key e)
               (let [[day hour bucket] (compute-rate-bucket (ts-key e) bucket-size)
                     bucketsXhour (int (/ 60 bucket-size))
                     collumns (* bucketsXhour 24)
                     collumn (+ (* hour bucketsXhour) bucket)]
-                ;(println :day day :hour hour :bucket bucket :collumns collumns :column collumn (java.util.Date. (+ (ts-key e) TZ-OFFSET)))
                 (if data
                   (let [matrix (cond
                                  (or (< day last)
@@ -437,9 +427,6 @@
                                      matrix
                                      (recur (M/m-insert-zero-row matrix) (dec adjust)))))]
                     (do
-                      ;(println "**********************")
-                      ;(println :matrix matrix)
-                      ;(println :bucket bucket :day day)
                       {:matrix (M/m-inc matrix 0 collumn)
                        :last day
                        :ttl -1}))

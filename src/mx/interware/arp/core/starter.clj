@@ -35,7 +35,6 @@
                                (assoc sink-map stream-k [sink state])))
                            {} 
                            (get-in config [:arp :streams]))]
-    ;(PropertyConfigurator/configure "log4j.properties")
     (doseq [{:keys [type stream-to] :as listener} listeners]
       (let [_ (require type)
             sinks (map second 
@@ -44,7 +43,6 @@
                         (some (fn [stream-to] (= sink-k stream-to)) stream-to)) 
                       sink-map))
             D-sink (reduce comp (map first sinks))]
-        ;sinks es una coleccion de parejas [sink store]; sink es una funcion [e] que manda e e a (streams state e) 
         (start-listener D-sink listener)))))
 
 

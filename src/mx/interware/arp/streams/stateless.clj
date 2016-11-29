@@ -3,10 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.core.async :as async :refer [chan go go-loop timeout <! >! <!! >!!]]
-            ;[immutant.caching :as C]
             [mx.interware.arp.core.state :as ST :refer [as-map lookup]]
-            ;[mx.interware.arp.core.atom-state]
-            ;[mx.interware.arp.core.immutant-state]
             [mx.interware.arp.streams.common :refer [key-factory 
                                                      propagate error 
                                                      create-sink]])
@@ -314,12 +311,10 @@
   (let [socket-conf (agent {:host arp-host
                             :port arp-port})
         send-arp-events (fn [{:keys [host port socket] :as conf} events]
-                          ;(println :conf (pr-str conf) (pr-str events))
                           (try
                             (let [socket (or socket 
                                              (java.net.Socket. host port))
                                   out (.getOutputStream socket)]
-                              ;(println :write (pr-str events))
                               (.write out (.getBytes (pr-str events) "utf-8"))
                               (.write out 10)
                               (.flush out)
