@@ -9,6 +9,7 @@ Caudal is a platform that analyzes application logs using predictive models and 
 * Stadistical analytics
 * Real-Time Log analisys 
 * Highly configurable
+
 ## Language
  * Clojure
 
