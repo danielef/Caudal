@@ -6,6 +6,8 @@
             [clojure.core.async :as async :refer [chan go go-loop timeout <! >! <!! >!!]]
             [immutant.caching :as C]
             [mx.interware.arp.core.state :as ST])
+            ;[mx.interware.arp.core.atom-state]
+            ;[mx.interware.arp.core.immutant-state])
             
   (:import 
     (java.net InetAddress URL)
@@ -15,12 +17,14 @@
 (defn exec-in [origin delta D-fn & args]
   (go
     (<! (timeout delta))
+    ;(println "executing from: " origin)
     (apply D-fn args)))
 
 (defn repeat-every [origin delta count D-fn & args]
   (go-loop [n count]
     (when (or (> n 0) (= n -1))
       (<! (timeout delta))
+      ;(println "executing from: " origin)
       (apply D-fn args)
       (recur (if (> n 0) (dec n) n)))))
 
@@ -40,6 +44,7 @@
     (into k-vec (or by-path []))
     by-path))
 
+; /default/counter/by(%)/batch/by(%)/->ERROR  etc
 (defmethod key-factory true [by-path k-path]
   (let [by-path (or by-path [])
         by-sufix (fn [by-path idx]
@@ -163,6 +168,9 @@
       state)))
 
 (defmethod mutate! :send2streams [state e & [streams & _]]
+  ;(println :send2streams-1 (dissoc state :arp/agent))
+  ;(println :send2streams-2 e)
+  ;(println :send2streams-3 streams)
 
   (try
     (let [result (cond 
@@ -180,7 +188,8 @@
 
 (defn create-sink [state streams]
   (let [sink (fn [e]
-               (send state mutate! (assoc e :arp/latency (System/nanoTime)) streams))
+               (send state mutate! (assoc e :arp/latency (System/nanoTime)) streams)
+               e) ;este retorno de e es para poder componer varios sink!!!
         send2agent (fn [mutator-fn & args]
                      (apply send state mutator-fn args))]
     (send state assoc :arp/entry sink :arp/send2agent send2agent)
@@ -203,6 +212,7 @@
       state
       state)))
 
+;;;;;;;;; streams using path utils
 
 (defn introduce-path [stateless stateful form]
   (let [all-streams (into stateless stateful)

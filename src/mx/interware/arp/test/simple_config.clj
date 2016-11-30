@@ -41,10 +41,12 @@
   {:tx "tx1" :thread "T1" :end true :time 5000})
 
 
+; calcular estadisticas de INX)
 
 (defn mark [e]
   (assoc e :trace (java.lang.Exception. "TRACE")))
 
+;187836
 
 (def streams
   (default :ttl -1
@@ -81,11 +83,12 @@
                   (decorate :stats
                     (anomaly-by-stdev 0 :delta :avg :stdev
                       (defstream [e] (println :despues-ewma e)))))))))))))
-
+                      ;(->INFO :all))))))))))))
+                      ;(forward "localhost" 7777))))))))))))
               
   
 (def test-streams
-  (fn [by-path state e] 
+  (defstream [e]
     (println "Efectivamente:" e)))
   
    
@@ -100,6 +103,8 @@
     (default :starting true 
       (where :tx
         (where :delta
+          ;(smap (fn [e]
+          ;        (println (.format (java.text.SimpleDateFormat. "yyyyMMdd-HH:mm:ss,SSS") (:timestamp e)))
           (rate :timestamp :rate 30 60
             (smap (fn [e]
                     (if (= "23:59" (.format (java.text.SimpleDateFormat. "HH:mm") (:timestamp e)))
@@ -109,11 +114,13 @@
             (by [:tx]
               (batch 1000 1000
                 (smap #(folds/mean&std-dev :delta :avg :variance :stdev :n %)
+                  ;(->WARN [:tx :avg :variance :stdev :n :ttl])
                   (acum-stats :avg :variance :stdev :n
                     (smap (fn [{:keys [tx avg variance stdev n]}]
                             {:avg avg :variance variance :stdev stdev :n n :tx tx :ttl -1})
                       (store! (fn [{:keys [tx] :as e}]
                                 [:stats tx])))
+                    ;(dump-every "history" "yyyyMM_ww" [1 :minute] "./config/stats/")
                     (->WARN [:tx :avg :variance :stdev :n]))))
               (where :starting
                (ewma-timeless 0.5 :delta 
