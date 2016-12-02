@@ -1,4 +1,4 @@
-(defproject mx.interware/arp "1.1.0"
+(defproject mx.interware/arp "0.7.0"
   :description "Scavenger"
   :url "http://arp.interware.mx/"
   :license {:name "Eclipse Public License"
