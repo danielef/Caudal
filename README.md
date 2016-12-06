@@ -1,7 +1,9 @@
 ![alt text][logo]
 [logo]: http://reedlatam.com/sadmoweb/img/modulos/Listasweb/expo-tecnologia/2016/lista-expositores//logo_iw_soluciones_honestas.png "Interware de México"
 -----
-# [Caudal](http://www.interware.com.mx)   
+![alt text][Caudal]
+[logo]: https://interwaremx.github.io/Caudal/doc/images/caudal.jpg "Caudal"  
+------ 
 
 Caudal is a platform that analyzes application logs using predictive models and machine learning in real-time in order to get rich information for reliability monitoring and recomendation systems.
 ## Features
